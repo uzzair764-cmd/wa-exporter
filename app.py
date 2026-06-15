@@ -255,13 +255,13 @@ with st.sidebar:
             "CUSTOM",
         ],
         format_func=lambda x: {
-            "ALL": "Keep ALL rows — final buckets MELAYU/CINA/INDIA/LAIN-LAIN",
-            "MCI": "Keep only MELAYU, CINA, INDIA",
-            "MELAYU": "Keep only MELAYU",
-            "CINA": "Keep only CINA",
-            "INDIA": "Keep only INDIA",
-            "LAIN-LAIN": "Keep only LAIN-LAIN",
-            "CUSTOM": "Custom bucket filter",
+            "ALL": "MELAYU, CINA, INDIA, LAIN-LAIN",
+            "MCI": "MELAYU, CINA, INDIA",
+            "MELAYU": "MELAYU",
+            "CINA": "CINA",
+            "INDIA": "INDIA",
+            "LAIN-LAIN": "LAIN-LAIN",
+            "CUSTOM": "CUSTOM",
         }[x],
         index=0
     )
