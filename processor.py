@@ -35,26 +35,18 @@ AGE_RANGES = [
 ACTIVE_AGE_RANGES = AGE_RANGES
 
 COLUMN_ALIASES = {
-    "name": [
-        "name", "nama", "nama penuh"
-    ],
+    "name": ["name", "nama", "nama penuh"],
 
     "nokp": [
         "nokp", "no kp", "no.kp", "no kad pengenalan",
         "ic", "no ic", "nric", "no k/p", "no kp lama"
     ],
 
-    "jantina": [
-        "jantina", "gender", "sex"
-    ],
+    "jantina": ["jantina", "gender", "sex"],
 
-    "umur": [
-        "umur", "age"
-    ],
+    "umur": ["umur", "age"],
 
-    "kaum_spr": [
-        "kaum spr", "kaum_spr"
-    ],
+    "kaum_spr": ["kaum spr", "kaum_spr"],
 
     "kategori_kaum": [
         "kategori kaum", "kategori_kaum", "kaum", "bangsa", "race"
@@ -66,57 +58,31 @@ COLUMN_ALIASES = {
         "mobile", "mobile no", "mobile number"
     ],
 
-    "number2": [
-        "phone 2", "no tel 2", "no telefon 2", "telefon 2"
-    ],
+    "number2": ["phone 2", "no tel 2", "no telefon 2", "telefon 2"],
 
-    "kod_lokaliti": [
-        "kod lokaliti", "kod_lokaliti", "locality code", "locality_code"
-    ],
+    "kod_lokaliti": ["kod lokaliti", "kod_lokaliti", "locality code", "locality_code"],
 
-    "nama_lokaliti": [
-        "nama lokaliti", "nama_lokaliti", "locality"
-    ],
+    "nama_lokaliti": ["nama lokaliti", "nama_lokaliti", "locality"],
 
-    "kod_dm": [
-        "kod dm", "kod_dm", "dm code", "dm_code"
-    ],
+    "kod_dm": ["kod dm", "kod_dm", "dm code", "dm_code"],
 
-    "nama_dm": [
-        "nama dm", "nama_dm", "dm"
-    ],
+    "nama_dm": ["nama dm", "nama_dm", "dm"],
 
-    "kod_dun": [
-        "kod dun", "kod_dun", "dun code", "dun_code"
-    ],
+    "kod_dun": ["kod dun", "kod_dun", "dun code", "dun_code"],
 
-    "nama_dun": [
-        "nama dun", "nama_dun", "dun"
-    ],
+    "nama_dun": ["nama dun", "nama_dun", "dun"],
 
-    "kod_parlimen": [
-        "kod parlimen", "kod_parlimen", "parliament code", "parliament_code"
-    ],
+    "kod_parlimen": ["kod parlimen", "kod_parlimen", "parliament code", "parliament_code"],
 
-    "nama_parlimen": [
-        "nama parlimen", "nama_parlimen", "parlimen", "parliament"
-    ],
+    "nama_parlimen": ["nama parlimen", "nama_parlimen", "parlimen", "parliament"],
 
-    "kod_negeri": [
-        "kod negeri", "kod_negeri", "state code", "state_code"
-    ],
+    "kod_negeri": ["kod negeri", "kod_negeri", "state code", "state_code"],
 
-    "nama_negeri": [
-        "nama negeri", "nama_negeri", "negeri", "state"
-    ],
+    "nama_negeri": ["nama negeri", "nama_negeri", "negeri", "state"],
 
-    "sikap": [
-        "sikap"
-    ],
+    "sikap": ["sikap"],
 
-    "party": [
-        "party", "parti"
-    ],
+    "party": ["party", "parti"],
 }
 
 
@@ -124,9 +90,9 @@ COLUMN_ALIASES = {
 # BASIC HELPERS
 # ============================================================
 
-def emit(progress_callback, message):
+def emit(progress_callback, message, progress_value=None):
     if progress_callback:
-        progress_callback(message)
+        progress_callback(message, progress_value)
 
 
 def normalize_key(text):
@@ -211,7 +177,7 @@ def read_excel_smart(file_name, read_all_sheets=True, progress_callback=None):
     xls = pd.ExcelFile(file_name)
     sheet_names = xls.sheet_names if read_all_sheets else [xls.sheet_names[0]]
 
-    emit(progress_callback, f"Reading: {os.path.basename(file_name)}")
+    emit(progress_callback, f"Reading: {os.path.basename(file_name)}", 8)
 
     for sheet_name in sheet_names:
         raw = pd.read_excel(
@@ -742,6 +708,8 @@ def run_export(file_paths, config, progress_callback=None):
     # READ FILES
     # ========================================================
 
+    emit(progress_callback, "Reading uploaded Excel file(s)...", 5)
+
     all_data = []
 
     for file_name in file_paths:
@@ -765,10 +733,10 @@ def run_export(file_paths, config, progress_callback=None):
     validate_required_columns(df, config)
 
     # ========================================================
-    # PHONE CLEANING
+    # CLEANING + FILTERING
     # ========================================================
 
-    emit(progress_callback, "Cleaning phone numbers...")
+    emit(progress_callback, "Cleaning phone numbers...", 15)
 
     df["number"] = df.apply(choose_one_phone, axis=1)
 
@@ -779,12 +747,8 @@ def run_export(file_paths, config, progress_callback=None):
     if df.empty:
         raise ValueError("No rows left after number cleaning.")
 
-    # ========================================================
-    # DEDUP NO KP
-    # ========================================================
-
     if dedup_by_nokp and "nokp" in df.columns:
-        emit(progress_callback, "Removing duplicate NO KP...")
+        emit(progress_callback, "Removing duplicate NO KP...", 25)
 
         df["nokp_clean"] = df["nokp"].astype(str).str.replace(r"\D", "", regex=True).str.strip()
 
@@ -797,22 +761,19 @@ def run_export(file_paths, config, progress_callback=None):
 
         df = pd.concat([df_valid_nokp, df_blank_nokp], ignore_index=True)
 
-    # ========================================================
-    # DEDUP PHONE
-    # ========================================================
-
     if dedup_by_phone:
-        emit(progress_callback, "Removing duplicate phone numbers...")
+        emit(progress_callback, "Removing duplicate phone numbers...", 30)
+        before_phone_dedup = len(df)
         df = df.drop_duplicates(subset=["number"], keep="first").copy()
+        after_phone_dedup = len(df)
+    else:
+        before_phone_dedup = len(df)
+        after_phone_dedup = len(df)
 
     if df.empty:
         raise ValueError("No rows left after duplicate cleaning.")
 
-    # ========================================================
-    # KAUM CLEANING + FILTER
-    # ========================================================
-
-    emit(progress_callback, "Cleaning kaum...")
+    emit(progress_callback, "Cleaning kaum...", 40)
 
     df["kaum_clean"] = df["kategori_kaum"].apply(clean_kaum)
 
@@ -827,17 +788,13 @@ def run_export(file_paths, config, progress_callback=None):
     if df.empty:
         raise ValueError("No rows left after kaum filtering.")
 
-    # ========================================================
-    # SIKAP FILTER
-    # ========================================================
-
     if "sikap" in df.columns:
         df["sikap_clean"] = df["sikap"].apply(normalize_sikap)
     else:
         df["sikap_clean"] = ""
 
     if sikap_filter:
-        emit(progress_callback, "Filtering sikap...")
+        emit(progress_callback, "Filtering sikap...", 50)
 
         sikap_set = set(normalize_sikap(x) for x in sikap_filter)
         df = df[df["sikap_clean"].isin(sikap_set)].copy()
@@ -845,12 +802,8 @@ def run_export(file_paths, config, progress_callback=None):
     if df.empty:
         raise ValueError("No rows left after sikap filtering.")
 
-    # ========================================================
-    # PARTY FILTER
-    # ========================================================
-
     if party_filter:
-        emit(progress_callback, "Filtering party...")
+        emit(progress_callback, "Filtering party...", 55)
 
         party_set = set(str(x).strip().upper() for x in party_filter)
 
@@ -860,12 +813,8 @@ def run_export(file_paths, config, progress_callback=None):
     if df.empty:
         raise ValueError("No rows left after party filtering.")
 
-    # ========================================================
-    # AGE FILTER
-    # ========================================================
-
     if age_filter is not None:
-        emit(progress_callback, "Filtering age...")
+        emit(progress_callback, "Filtering age group(s)...", 60)
 
         df["umur_num"] = pd.to_numeric(df["umur"], errors="coerce")
 
@@ -904,7 +853,7 @@ def run_export(file_paths, config, progress_callback=None):
     # WA FORMAT
     # ========================================================
 
-    emit(progress_callback, "Preparing WhatsApp columns...")
+    emit(progress_callback, "Preparing WhatsApp columns...", 70)
 
     df["code"] = df.apply(
         lambda x: get_code(x.get("kategori_kaum", ""), x.get("jantina", "")),
@@ -924,6 +873,8 @@ def run_export(file_paths, config, progress_callback=None):
     # BUILD LABELS
     # ========================================================
 
+    emit(progress_callback, "Preparing output groups...", 75)
+
     df = build_labels(df)
 
     if "AGE" in group_levels:
@@ -933,48 +884,12 @@ def run_export(file_paths, config, progress_callback=None):
         raise ValueError("No rows left after grouping setup.")
 
     # ========================================================
-    # SUMMARY SETUP
-    # ========================================================
-
-    summary_lines = [
-        "SUMMARY",
-        "",
-        f"JUMLAH ASAL = {format_count(original_rows)}",
-        f"AFTER VALID NUMBER FILTER = {format_count(after_phone)} kept ({format_count(before_phone - after_phone)} removed)",
-        f"AFTER KAUM FILTER = {format_count(after_kaum)} kept ({format_count(before_kaum - after_kaum)} removed)",
-        f"JUMLAH AKHIR = {format_count(len(df))}",
-        "",
-        "CONFIG",
-        f"INPUT_LEVEL = {input_level}",
-        f"GROUP_LEVELS = {group_levels}",
-        f"LAST_GROUP_AS_FOLDER = {last_group_as_folder}",
-        f"SPLIT_BY_KAUM = {split_by_kaum}",
-        f"SPLIT_BY_GENDER_CODE = {split_by_gender_code}",
-        f"KEEP_KAUM = {keep_kaum}",
-        f"SIKAP_FILTER = {sikap_filter}",
-        f"PARTY_FILTER = {party_filter}",
-        f"AGE_FILTER = {age_filter}",
-        f"CUSTOM_AGE_RANGES = {custom_age_ranges}",
-        f"DEDUP_BY_PHONE = {dedup_by_phone}",
-        f"DEDUP_BY_NOKP = {dedup_by_nokp}",
-        f"READ_ALL_SHEETS = {read_all_sheets}",
-        "",
-        "KAUM NOTE",
-        "FINAL KAUM BUCKETS = MELAYU, CINA, INDIA, LAIN-LAIN",
-        "ORANG ASLI, BUMI, AND ANY OTHER KAUM = LAIN-LAIN",
-        "",
-        "SIKAP NOTE",
-        "KELABU = any value containing KELABU, including KELABU-BARU and KELABU-LAMA",
-        "",
-        "OUTPUT COUNT",
-        ""
-    ]
-
-    # ========================================================
     # WRITE OUTPUTS
     # ========================================================
 
-    emit(progress_callback, "Writing Excel files...")
+    emit(progress_callback, "Writing Excel files...", 82)
+
+    output_lines = []
 
     label_cols, sort_cols = get_group_columns(group_levels)
 
@@ -992,10 +907,6 @@ def run_export(file_paths, config, progress_callback=None):
         split_col = "kaum_clean"
 
     total_files_created = 0
-
-    # ========================================================
-    # CASE 1 — NO GROUPING
-    # ========================================================
 
     if not label_cols:
         base_folder = output_dir
@@ -1016,7 +927,7 @@ def run_export(file_paths, config, progress_callback=None):
                 save_xlsx_no_style(export_df, out_path)
 
                 total_files_created += 1
-                summary_lines.append(f"{safe_file_label(split_value)} = {format_count(len(split_group))}")
+                output_lines.append(f"{safe_file_label(split_value)} = {format_count(len(split_group))}")
 
         else:
             export_df = build_wa_df(df)
@@ -1027,11 +938,7 @@ def run_export(file_paths, config, progress_callback=None):
             save_xlsx_no_style(export_df, out_path)
 
             total_files_created += 1
-            summary_lines.append(f"OUTPUT = {format_count(len(df))}")
-
-    # ========================================================
-    # CASE 2 — GROUPING
-    # ========================================================
+            output_lines.append(f"OUTPUT = {format_count(len(df))}")
 
     else:
         grouped = df.groupby(label_cols, dropna=False, sort=False)
@@ -1064,10 +971,10 @@ def run_export(file_paths, config, progress_callback=None):
             os.makedirs(out_folder, exist_ok=True)
 
             display_path = " / ".join(group_labels)
-            summary_lines.append(f"{display_path} = {format_count(len(group))}")
 
             if split_col:
                 split_items = get_split_items(group, split_col)
+                output_lines.append(f"{display_path} = {format_count(len(group))}")
 
                 for split_value, split_group in split_items:
                     if split_group.empty and not create_empty_files:
@@ -1083,7 +990,7 @@ def run_export(file_paths, config, progress_callback=None):
                     save_xlsx_no_style(export_df, out_path)
 
                     total_files_created += 1
-                    summary_lines.append(f"  {split_label} = {format_count(len(split_group))}")
+                    output_lines.append(f"  {split_label} = {format_count(len(split_group))}")
 
             else:
                 if group.empty and not create_empty_files:
@@ -1098,12 +1005,39 @@ def run_export(file_paths, config, progress_callback=None):
                 save_xlsx_no_style(export_df, out_path)
 
                 total_files_created += 1
+                output_lines.append(f"{display_path} = {format_count(len(group))}")
 
-            summary_lines.append("")
+            output_lines.append("")
 
     # ========================================================
-    # SUMMARY FILE
+    # SIMPLE SUMMARY FILE
     # ========================================================
+
+    emit(progress_callback, "Creating summary...", 92)
+
+    summary_lines = [
+        "SUMMARY",
+        "",
+        f"TOTAL INPUT ROWS = {format_count(original_rows)}",
+        f"FINAL ROWS = {format_count(len(df))}",
+        f"EXCEL FILES CREATED = {format_count(total_files_created)}",
+        "",
+        "FILTERS",
+        f"INPUT LEVEL = {input_level}",
+        f"KAUM = {keep_kaum}",
+        f"SIKAP = {sikap_filter if sikap_filter else 'NO FILTER'}",
+        f"PARTY = {party_filter if party_filter else 'NO FILTER'}",
+        f"AGE GROUPS = {custom_age_ranges if custom_age_ranges else 'NO FILTER'}",
+        "",
+        "CLEANING",
+        f"VALID PHONE ROWS = {format_count(after_phone)}",
+        f"DUPLICATE PHONES REMOVED = {format_count(before_phone_dedup - after_phone_dedup)}",
+        "",
+        "OUTPUT COUNT",
+        ""
+    ]
+
+    summary_lines.extend(output_lines)
 
     summary_text = "\n".join(summary_lines)
 
@@ -1116,12 +1050,12 @@ def run_export(file_paths, config, progress_callback=None):
     # ZIP
     # ========================================================
 
-    emit(progress_callback, "Creating ZIP...")
+    emit(progress_callback, "Creating ZIP...", 96)
 
     zip_base = os.path.join(os.path.dirname(output_dir), zip_name)
     zip_path = shutil.make_archive(zip_base, "zip", output_dir)
 
-    emit(progress_callback, "Done.")
+    emit(progress_callback, "Done.", 100)
 
     return {
         "final_rows": int(len(df)),
