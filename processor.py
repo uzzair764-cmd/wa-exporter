@@ -428,9 +428,9 @@ def extract_dun_num(kod_dun):
         return "00"
 
     if len(num) >= 2:
-        return str(int(num[-2:]))
+        return f"{int(num[-2:]):02d}"
 
-    return str(int(num))
+    return f"{int(num):02d}"
 
 
 def extract_dm_num(kod_dm):
@@ -441,17 +441,17 @@ def extract_dm_num(kod_dm):
 
         if len(parts) >= 3:
             dm_raw = re.sub(r"\D", "", parts[2])
-            return str(int(dm_raw)) if dm_raw else "0"
+            return f"{int(dm_raw):02d}" if dm_raw else "00"
 
     digits = re.sub(r"\D", "", raw)
 
     if digits == "":
-        return "0"
+        return "00"
 
     digits = digits.zfill(7)
     dm_raw = digits[-2:]
 
-    return str(int(dm_raw)) if dm_raw else "0"
+    return f"{int(dm_raw):02d}" if dm_raw else "00"
 
 
 def code_sort_num(text):
@@ -488,7 +488,7 @@ def build_labels(df):
 
     if "kod_dun" in df.columns:
         df["__DUN_LABEL"] = df.apply(
-            lambda x: f"N.{extract_dun_num(x.get('kod_dun', ''))} {sanitize(x.get('nama_dun', ''))}",
+            lambda x: f"N{extract_dun_num(x.get('kod_dun', ''))} {sanitize(x.get('nama_dun', ''))}",
             axis=1
         )
         df["__DUN_SORT"] = df["kod_dun"].apply(code_sort_num)
