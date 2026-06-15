@@ -505,7 +505,7 @@ with st.sidebar:
             "PUTIH": "PUTIH only",
             "HITAM_KELABU": "HITAM + KELABU",
             "KELABU_PUTIH": "KELABU + PUTIH",
-            "CUSTOM": "Custom sikap filter",
+            "CUSTOM": "CUSTOM",
         }[x],
         index=0,
         key="sikap_filter"
