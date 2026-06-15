@@ -32,6 +32,8 @@ AGE_RANGES = [
     ("61>", "61 KE ATAS", 61, None),
 ]
 
+ACTIVE_AGE_RANGES = AGE_RANGES
+
 COLUMN_ALIASES = {
     "name": [
         "name", "nama", "nama penuh"
@@ -420,14 +422,17 @@ def build_wa_df(group):
 # LABEL HELPERS
 # ============================================================
 
-def assign_age_range(age):
+def assign_age_range(age, age_ranges=None):
+    if age_ranges is None:
+        age_ranges = ACTIVE_AGE_RANGES
+
     try:
         age = int(float(str(age).strip()))
 
     except:
         return None
 
-    for txt_label, file_label, min_age, max_age in AGE_RANGES:
+    for txt_label, file_label, min_age, max_age in age_ranges:
         if max_age is None:
             if age >= min_age:
                 return txt_label
@@ -489,7 +494,9 @@ def code_sort_num(text):
 
 
 def get_file_label_from_age(txt_label):
-    for t, file_label, min_age, max_age in AGE_RANGES:
+    active_age_ranges = globals().get("ACTIVE_AGE_RANGES", AGE_RANGES)
+
+    for t, file_label, min_age, max_age in active_age_ranges:
         if t == txt_label:
             return file_label
 
@@ -499,7 +506,7 @@ def get_file_label_from_age(txt_label):
 def safe_file_label(label):
     label = str(label)
 
-    if label in [x[0] for x in AGE_RANGES]:
+    if label in [x[0] for x in globals().get("ACTIVE_AGE_RANGES", AGE_RANGES)]:
         label = get_file_label_from_age(label)
 
     return sanitize(label)
@@ -540,11 +547,15 @@ def build_labels(df):
         df["__KAUM_SORT"] = df["kaum_clean"].map(kaum_order).fillna(99).astype(int)
 
     if "umur" in df.columns:
-        df["__AGE_LABEL"] = df["umur"].apply(assign_age_range)
+        active_age_ranges = globals().get("ACTIVE_AGE_RANGES", AGE_RANGES)
+
+        df["__AGE_LABEL"] = df["umur"].apply(
+            lambda x: assign_age_range(x, active_age_ranges)
+        )
 
         age_order = {
             txt_label: i
-            for i, (txt_label, file_label, min_age, max_age) in enumerate(AGE_RANGES)
+            for i, (txt_label, file_label, min_age, max_age) in enumerate(active_age_ranges)
         }
 
         df["__AGE_SORT"] = df["__AGE_LABEL"].map(age_order).fillna(999).astype(int)
@@ -697,6 +708,8 @@ def get_split_items(group, split_col):
 # ============================================================
 
 def run_export(file_paths, config, progress_callback=None):
+    global ACTIVE_AGE_RANGES
+
     output_dir = config["output_dir"]
     zip_name = config.get("zip_name", "voter_outputs")
 
@@ -709,10 +722,16 @@ def run_export(file_paths, config, progress_callback=None):
     sikap_filter = config["sikap_filter"]
     party_filter = config["party_filter"]
     age_filter = config["age_filter"]
+    custom_age_ranges = config.get("custom_age_ranges", [])
     dedup_by_phone = config["dedup_by_phone"]
     dedup_by_nokp = config["dedup_by_nokp"]
     read_all_sheets = config["read_all_sheets"]
     create_empty_files = config["create_empty_files"]
+
+    if custom_age_ranges:
+        ACTIVE_AGE_RANGES = custom_age_ranges
+    else:
+        ACTIVE_AGE_RANGES = AGE_RANGES
 
     if os.path.exists(output_dir):
         shutil.rmtree(output_dir)
@@ -848,18 +867,35 @@ def run_export(file_paths, config, progress_callback=None):
     if age_filter is not None:
         emit(progress_callback, "Filtering age...")
 
-        min_age, max_age = age_filter
-
         df["umur_num"] = pd.to_numeric(df["umur"], errors="coerce")
 
-        if max_age is None:
-            df = df[df["umur_num"] >= min_age].copy()
+        if age_filter == "CUSTOM_AGE_GROUPS" and custom_age_ranges:
+            mask = False
+
+            for label, file_label, min_age, max_age in custom_age_ranges:
+                if max_age is None:
+                    current_mask = df["umur_num"] >= min_age
+                else:
+                    current_mask = (
+                        (df["umur_num"] >= min_age) &
+                        (df["umur_num"] <= max_age)
+                    )
+
+                mask = mask | current_mask
+
+            df = df[mask].copy()
 
         else:
-            df = df[
-                (df["umur_num"] >= min_age) &
-                (df["umur_num"] <= max_age)
-            ].copy()
+            min_age, max_age = age_filter
+
+            if max_age is None:
+                df = df[df["umur_num"] >= min_age].copy()
+
+            else:
+                df = df[
+                    (df["umur_num"] >= min_age) &
+                    (df["umur_num"] <= max_age)
+                ].copy()
 
     if df.empty:
         raise ValueError("No rows left after age filtering.")
@@ -918,6 +954,7 @@ def run_export(file_paths, config, progress_callback=None):
         f"SIKAP_FILTER = {sikap_filter}",
         f"PARTY_FILTER = {party_filter}",
         f"AGE_FILTER = {age_filter}",
+        f"CUSTOM_AGE_RANGES = {custom_age_ranges}",
         f"DEDUP_BY_PHONE = {dedup_by_phone}",
         f"DEDUP_BY_NOKP = {dedup_by_nokp}",
         f"READ_ALL_SHEETS = {read_all_sheets}",
