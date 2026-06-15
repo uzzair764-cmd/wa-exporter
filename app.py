@@ -35,11 +35,23 @@ st.markdown(
         color: #666;
         margin-bottom: 2rem;
     }
+
+    .preview-box {
+        background-color: #fafafa;
+        border: 1px solid #eeeeee;
+        border-radius: 14px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
+
+# ============================================================
+# HELPERS
+# ============================================================
 
 def safe_filename(name):
     name = os.path.basename(str(name))
@@ -49,8 +61,10 @@ def safe_filename(name):
 
 def csv_to_list(text):
     text = str(text).strip()
+
     if text == "" or text == "NONE" or text == "NO FILTER":
         return []
+
     return [x.strip().upper() for x in text.split(",") if x.strip() != ""]
 
 
@@ -72,8 +86,10 @@ def normalize_sikap_config(x):
 
     if "KELABU" in x:
         return "KELABU"
+
     if "HITAM" in x:
         return "HITAM"
+
     if "PUTIH" in x:
         return "PUTIH"
 
@@ -252,9 +268,142 @@ def parse_age_groups(age_group_rows):
     return age_ranges
 
 
+def build_folder_preview(input_level, structure_code, age_ranges):
+    age_labels = []
+
+    if age_ranges:
+        age_labels = [x[1] for x in age_ranges]
+    else:
+        age_labels = ["18-25", "26-40", "41-60", "61 KE ATAS"]
+
+    if input_level == "DUN":
+        if structure_code == "DUN_DM_FILE":
+            return """voter_outputs/
+└── N.XX DUN_NAME/
+    ├── DM1 NAMA_DM.xlsx
+    ├── DM2 NAMA_DM.xlsx
+    └── DM3 NAMA_DM.xlsx"""
+
+        if structure_code == "DUN_DM_KAUM":
+            return """voter_outputs/
+└── N.XX DUN_NAME/
+    └── DM1 NAMA_DM/
+        ├── DM1 NAMA_DM MELAYU.xlsx
+        ├── DM1 NAMA_DM CINA.xlsx
+        ├── DM1 NAMA_DM INDIA.xlsx
+        └── DM1 NAMA_DM LAIN-LAIN.xlsx"""
+
+        if structure_code == "DUN_FILE":
+            return """voter_outputs/
+└── N.XX DUN_NAME/
+    └── N.XX DUN_NAME.xlsx"""
+
+        if structure_code == "DUN_KAUM":
+            return """voter_outputs/
+└── N.XX DUN_NAME/
+    ├── N.XX DUN_NAME MELAYU.xlsx
+    ├── N.XX DUN_NAME CINA.xlsx
+    ├── N.XX DUN_NAME INDIA.xlsx
+    └── N.XX DUN_NAME LAIN-LAIN.xlsx"""
+
+        if structure_code == "DUN_AGE":
+            preview = "voter_outputs/\n└── N.XX DUN_NAME/\n"
+            for age in age_labels:
+                preview += f"    ├── {age}.xlsx\n"
+            return preview.rstrip()
+
+        if structure_code == "DUN_DM_CODE":
+            return """voter_outputs/
+└── N.XX DUN_NAME/
+    └── DM1 NAMA_DM/
+        ├── DM1 NAMA_DM ML.xlsx
+        ├── DM1 NAMA_DM MP.xlsx
+        ├── DM1 NAMA_DM CL.xlsx
+        └── DM1 NAMA_DM CP.xlsx"""
+
+    else:
+        if structure_code == "PARLIMEN_DUN_DM_FILE":
+            return """voter_outputs/
+└── PXXX PARLIMEN_NAME/
+    └── N.XX DUN_NAME/
+        ├── DM1 NAMA_DM.xlsx
+        └── DM2 NAMA_DM.xlsx"""
+
+        if structure_code == "PARLIMEN_DUN_DM_KAUM":
+            return """voter_outputs/
+└── PXXX PARLIMEN_NAME/
+    └── N.XX DUN_NAME/
+        └── DM1 NAMA_DM/
+            ├── DM1 NAMA_DM MELAYU.xlsx
+            ├── DM1 NAMA_DM CINA.xlsx
+            └── DM1 NAMA_DM LAIN-LAIN.xlsx"""
+
+        if structure_code == "PARLIMEN_DUN_FILE":
+            return """voter_outputs/
+└── PXXX PARLIMEN_NAME/
+    ├── N.01 DUN_NAME.xlsx
+    └── N.02 DUN_NAME.xlsx"""
+
+        if structure_code == "PARLIMEN_DUN_KAUM":
+            return """voter_outputs/
+└── PXXX PARLIMEN_NAME/
+    └── N.XX DUN_NAME/
+        ├── N.XX DUN_NAME MELAYU.xlsx
+        ├── N.XX DUN_NAME CINA.xlsx
+        └── N.XX DUN_NAME LAIN-LAIN.xlsx"""
+
+        if structure_code == "PARLIMEN_DUN_AGE":
+            preview = "voter_outputs/\n└── PXXX PARLIMEN_NAME/\n    └── N.XX DUN_NAME/\n"
+            for age in age_labels:
+                preview += f"        ├── {age}.xlsx\n"
+            return preview.rstrip()
+
+        if structure_code == "PARLIMEN_DUN_DM_CODE":
+            return """voter_outputs/
+└── PXXX PARLIMEN_NAME/
+    └── N.XX DUN_NAME/
+        └── DM1 NAMA_DM/
+            ├── DM1 NAMA_DM ML.xlsx
+            ├── DM1 NAMA_DM MP.xlsx
+            └── DM1 NAMA_DM CL.xlsx"""
+
+        if structure_code == "PARLIMEN_FILE":
+            return """voter_outputs/
+└── PXXX PARLIMEN_NAME/
+    └── PXXX PARLIMEN_NAME.xlsx"""
+
+    return "voter_outputs/"
+
+
+def reset_filters():
+    keys_to_reset = [
+        "kaum_filter",
+        "custom_kaum",
+        "sikap_filter",
+        "custom_sikap",
+        "party_filter_selected",
+        "print_full_summary",
+        "age_groups",
+        "zip_bytes",
+        "summary_text",
+        "final_rows",
+        "files_created",
+    ]
+
+    for key in keys_to_reset:
+        if key in st.session_state:
+            del st.session_state[key]
+
+    st.rerun()
+
+
 if "age_groups" not in st.session_state:
     st.session_state["age_groups"] = []
 
+
+# ============================================================
+# HEADER
+# ============================================================
 
 col_logo, col_title = st.columns([0.07, 0.93])
 
@@ -270,20 +419,26 @@ st.markdown(
 )
 
 
+# ============================================================
+# SIDEBAR CONFIG
+# ============================================================
+
 with st.sidebar:
     st.header("Configurations")
 
     input_level = st.selectbox(
         "Input Level",
         ["DUN", "PARLIMEN"],
-        index=0
+        index=0,
+        key="input_level"
     )
 
     structure_options = get_structure_options(input_level)
     structure_label = st.selectbox(
         "Output Structure",
         list(structure_options.keys()),
-        index=0
+        index=0,
+        key="structure_label"
     )
     structure_code = structure_options[structure_label]
 
@@ -300,7 +455,7 @@ with st.sidebar:
             "LAIN-LAIN",
             "CUSTOM",
         ],
-         format_func=lambda x: {
+        format_func=lambda x: {
             "ALL": "MELAYU, CINA, INDIA, LAIN-LAIN",
             "MCI": "MELAYU, CINA, INDIA",
             "MELAYU": "MELAYU",
@@ -309,13 +464,15 @@ with st.sidebar:
             "LAIN-LAIN": "LAIN-LAIN",
             "CUSTOM": "CUSTOM",
         }[x],
-        index=0
+        index=0,
+        key="kaum_filter"
     )
 
     if kaum_filter == "CUSTOM":
         custom_kaum = st.text_input(
             "Custom Kaum",
-            placeholder="Example: MELAYU,CINA,INDIA,LAIN-LAIN"
+            placeholder="Example: MELAYU,CINA,INDIA,LAIN-LAIN",
+            key="custom_kaum"
         )
     else:
         custom_kaum = ""
@@ -340,13 +497,15 @@ with st.sidebar:
             "KELABU_PUTIH": "KELABU + PUTIH",
             "CUSTOM": "Custom sikap filter",
         }[x],
-        index=0
+        index=0,
+        key="sikap_filter"
     )
 
     if sikap_filter == "CUSTOM":
         custom_sikap = st.text_input(
             "Custom Sikap",
-            placeholder="Example: HITAM,KELABU,PUTIH"
+            placeholder="Example: HITAM,KELABU,PUTIH",
+            key="custom_sikap"
         )
     else:
         custom_sikap = ""
@@ -354,7 +513,8 @@ with st.sidebar:
     party_filter_selected = st.selectbox(
         "Party / Parti Filter",
         ["NO FILTER", "PAS", "PKR", "PPBM", "UMNO"],
-        index=0
+        index=0,
+        key="party_filter_selected"
     )
 
     st.divider()
@@ -424,8 +584,36 @@ with st.sidebar:
 
     st.divider()
 
-    print_full_summary = st.checkbox("Show full summary after processing", value=False)
+    print_full_summary = st.checkbox(
+        "Show full summary after processing",
+        value=False,
+        key="print_full_summary"
+    )
 
+    st.divider()
+
+    if st.button("RESET FILTERS", use_container_width=True):
+        reset_filters()
+
+
+# ============================================================
+# DYNAMIC FOLDER STRUCTURE PREVIEW
+# ============================================================
+
+st.markdown("### Folder Structure Preview")
+
+preview_text = build_folder_preview(
+    input_level=input_level,
+    structure_code=structure_code,
+    age_ranges=custom_age_ranges
+)
+
+st.code(preview_text, language="text")
+
+
+# ============================================================
+# FILE UPLOAD + RUN
+# ============================================================
 
 uploaded_files = st.file_uploader(
     "Upload Excel file(s)",
@@ -495,10 +683,14 @@ if run_button:
             "create_empty_files": False,
         }
 
+        progress_bar = st.progress(0)
         status_box = st.empty()
 
-        def progress_callback(message):
+        def progress_callback(message, progress_value=None):
             status_box.info(message)
+
+            if progress_value is not None:
+                progress_bar.progress(min(max(int(progress_value), 0), 100))
 
         try:
             with st.spinner("Processing files..."):
@@ -507,6 +699,8 @@ if run_button:
                     config=config,
                     progress_callback=progress_callback
                 )
+
+            progress_bar.progress(100)
 
             with open(result["zip_path"], "rb") as f:
                 zip_bytes = f.read()
@@ -524,6 +718,10 @@ if run_button:
             st.error(str(e))
             st.stop()
 
+
+# ============================================================
+# RESULT DISPLAY
+# ============================================================
 
 if "zip_bytes" in st.session_state:
     col1, col2 = st.columns(2)
