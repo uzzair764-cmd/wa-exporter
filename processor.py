@@ -351,7 +351,7 @@ def format_code_7digit(raw_code):
             parlimen = re.sub(r"\D", "", parts[0]).zfill(3)
             dun = re.sub(r"\D", "", parts[1]).zfill(2)
             last_raw = re.sub(r"\D", "", parts[2])
-            last = str(int(last_raw)) if last_raw else "0"
+            last = f"{int(last_raw):02d}" if last_raw else "00"
 
             return f".{parlimen}.{dun}.{last}"
 
@@ -365,7 +365,7 @@ def format_code_7digit(raw_code):
     parlimen = digits[:3]
     dun = digits[3:5]
     last_raw = digits[5:7]
-    last = str(int(last_raw)) if last_raw else "0"
+    last = f"{int(last_raw):02d}" if last_raw else "00"
 
     return f".{parlimen}.{dun}.{last}"
 
@@ -488,7 +488,7 @@ def build_labels(df):
 
     if "kod_dun" in df.columns:
         df["__DUN_LABEL"] = df.apply(
-            lambda x: f"N{extract_dun_num(x.get('kod_dun', ''))} {sanitize(x.get('nama_dun', ''))}",
+            lambda x: f"N.{extract_dun_num(x.get('kod_dun', ''))} {sanitize(x.get('nama_dun', ''))}",
             axis=1
         )
         df["__DUN_SORT"] = df["kod_dun"].apply(code_sort_num)
@@ -669,6 +669,57 @@ def get_split_items(group, split_col):
     return items
 
 
+def build_summary_output_lines(output_lines):
+    grouped_summary = {}
+    no_group_lines = []
+
+    for line in output_lines:
+        if not line.strip():
+            continue
+
+        if " / " in line and " = " in line and not line.startswith("  "):
+            left, count = line.split(" = ", 1)
+            parts = left.split(" / ")
+
+            if len(parts) >= 2:
+                parent = parts[0]
+                child = parts[-1]
+                grouped_summary.setdefault(parent, []).append({
+                    "title": child,
+                    "count": count,
+                    "children": []
+                })
+
+        elif line.startswith("  ") and grouped_summary:
+            last_parent = list(grouped_summary.keys())[-1]
+
+            if grouped_summary[last_parent]:
+                grouped_summary[last_parent][-1]["children"].append(line)
+
+        elif " = " in line:
+            no_group_lines.append(line)
+
+    final_lines = []
+
+    if grouped_summary:
+        for parent, items in grouped_summary.items():
+            final_lines.append(parent)
+            final_lines.append("")
+
+            for idx, item in enumerate(items, start=1):
+                final_lines.append(f"{idx}. {item['title']} = {item['count']}")
+
+                for child in item["children"]:
+                    final_lines.append(child)
+
+                final_lines.append("")
+
+    else:
+        final_lines.extend(no_group_lines)
+
+    return final_lines
+
+
 # ============================================================
 # MAIN EXPORT FUNCTION
 # ============================================================
@@ -704,10 +755,6 @@ def run_export(file_paths, config, progress_callback=None):
 
     os.makedirs(output_dir, exist_ok=True)
 
-    # ========================================================
-    # READ FILES
-    # ========================================================
-
     emit(progress_callback, "Reading uploaded Excel file(s)...", 5)
 
     all_data = []
@@ -731,10 +778,6 @@ def run_export(file_paths, config, progress_callback=None):
         df["number2"] = ""
 
     validate_required_columns(df, config)
-
-    # ========================================================
-    # CLEANING + FILTERING
-    # ========================================================
 
     emit(progress_callback, "Cleaning phone numbers...", 15)
 
@@ -849,10 +892,6 @@ def run_export(file_paths, config, progress_callback=None):
     if df.empty:
         raise ValueError("No rows left after age filtering.")
 
-    # ========================================================
-    # WA FORMAT
-    # ========================================================
-
     emit(progress_callback, "Preparing WhatsApp columns...", 70)
 
     df["code"] = df.apply(
@@ -869,10 +908,6 @@ def run_export(file_paths, config, progress_callback=None):
     if df.empty:
         raise ValueError("No rows left after WhatsApp formatting.")
 
-    # ========================================================
-    # BUILD LABELS
-    # ========================================================
-
     emit(progress_callback, "Preparing output groups...", 75)
 
     df = build_labels(df)
@@ -882,10 +917,6 @@ def run_export(file_paths, config, progress_callback=None):
 
     if df.empty:
         raise ValueError("No rows left after grouping setup.")
-
-    # ========================================================
-    # WRITE OUTPUTS
-    # ========================================================
 
     emit(progress_callback, "Writing Excel files...", 82)
 
@@ -1009,14 +1040,19 @@ def run_export(file_paths, config, progress_callback=None):
 
             output_lines.append("")
 
-    # ========================================================
-    # SIMPLE SUMMARY FILE
-    # ========================================================
-
     emit(progress_callback, "Creating summary...", 92)
 
-    summary_lines = [
-        "SUMMARY",
+    summary_output_lines = build_summary_output_lines(output_lines)
+
+    summary_text = "\n".join(summary_output_lines).strip() + "\n"
+
+    summary_path = os.path.join(output_dir, "SUMMARY.txt")
+
+    with open(summary_path, "w", encoding="utf-8") as f:
+        f.write(summary_text)
+
+    filter_log_lines = [
+        "FILTER LOG",
         "",
         f"TOTAL INPUT ROWS = {format_count(original_rows)}",
         f"FINAL ROWS = {format_count(len(df))}",
@@ -1032,23 +1068,14 @@ def run_export(file_paths, config, progress_callback=None):
         "CLEANING",
         f"VALID PHONE ROWS = {format_count(after_phone)}",
         f"DUPLICATE PHONES REMOVED = {format_count(before_phone_dedup - after_phone_dedup)}",
-        "",
-        "OUTPUT COUNT",
-        ""
     ]
 
-    summary_lines.extend(output_lines)
+    filter_log_text = "\n".join(filter_log_lines).strip() + "\n"
 
-    summary_text = "\n".join(summary_lines)
+    filter_log_path = os.path.join(output_dir, "FILTER LOG.txt")
 
-    summary_path = os.path.join(output_dir, "SUMMARY.txt")
-
-    with open(summary_path, "w", encoding="utf-8") as f:
-        f.write(summary_text)
-
-    # ========================================================
-    # ZIP
-    # ========================================================
+    with open(filter_log_path, "w", encoding="utf-8") as f:
+        f.write(filter_log_text)
 
     emit(progress_callback, "Creating ZIP...", 96)
 
