@@ -69,8 +69,10 @@ def standardize_columns(df):
 
 def clean_text(df):
     df = df.copy()
+
     for col in df.columns:
         df[col] = df[col].fillna("").astype(str).str.strip()
+
     return df
 
 
@@ -114,10 +116,19 @@ def clean_numbers(df):
 
 def build_output_df(df, id_prefix, start_num):
     df = df.copy()
-    df = df.drop(columns=["id", "umur2", "kategori_kaum"], errors="ignore")
+
+    df = df.drop(
+        columns=["id", "umur2", "kategori_kaum"],
+        errors="ignore"
+    )
 
     row_count = len(df)
-    df.insert(0, "id", [f"{id_prefix}{i}" for i in range(start_num, start_num + row_count)])
+
+    df.insert(
+        0,
+        "id",
+        [f"{id_prefix}{i}" for i in range(start_num, start_num + row_count)]
+    )
 
     for col in FINAL_COLUMNS:
         if col not in df.columns:
@@ -157,7 +168,12 @@ def write_xlsx_bytes(df):
         for col_idx, col_name in enumerate(df.columns):
             worksheet.write(0, col_idx, col_name, header_fmt)
 
-        worksheet.set_column(0, len(df.columns) - 1, 18, cell_fmt)
+        worksheet.set_column(
+            0,
+            len(df.columns) - 1,
+            18,
+            cell_fmt
+        )
 
     output.seek(0)
     return output.getvalue()
@@ -186,7 +202,14 @@ def write_csv_chunks(df, chunk_size=50000):
     return chunks
 
 
-def run_cleaner(uploaded_files, start_id):
+def run_cleaner(
+    uploaded_files,
+    start_id,
+    chunk_size=50000,
+    remove_invalid=True,
+    remove_duplicates=True,
+    prefix_6=True
+):
     id_prefix, current_num = parse_start_id(start_id)
 
     zip_buffer = io.BytesIO()
@@ -197,6 +220,7 @@ def run_cleaner(uploaded_files, start_id):
             base_name = os.path.splitext(file.name)[0]
 
             raw_df = read_file(file)
+
             df = standardize_columns(raw_df)
             df = clean_text(df)
 
@@ -220,7 +244,10 @@ def run_cleaner(uploaded_files, start_id):
                 demografik_bytes
             )
 
-            csv_chunks = write_csv_chunks(output_df, chunk_size=50000)
+            csv_chunks = write_csv_chunks(
+                output_df,
+                chunk_size=chunk_size
+            )
 
             for chunk_no, csv_bytes in csv_chunks:
                 zipf.writestr(
