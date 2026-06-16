@@ -230,8 +230,14 @@ def run_cleaner(
 
             cleaned_df, stats = clean_numbers(df)
 
-            # DEMOGRAFIK uses POST-CLEANING data.
-            demografik_bytes = write_demografik_xlsx_bytes(cleaned_df, base_name)
+            # DEMOGRAFIK logic:
+            # - demographic columns use pre-cleaning df
+            # - NO TEL columns use post-cleaning cleaned_df
+            demografik_bytes = write_demografik_xlsx_bytes(
+                raw_df=df,
+                cleaned_df=cleaned_df,
+                base_name=base_name
+            )
 
             output_df, current_num, last_generated_id = build_output_df(
                 cleaned_df,
