@@ -61,8 +61,9 @@ def prepare_demografik_df(df):
     df["_age"] = df["umur"].apply(age_group)
     df["_jantina"] = df["jantina"].astype(str).str.strip().str.upper()
 
-    raw_number = df["number"].astype(str).str.strip()
-    df["_pemilih_tel"] = raw_number.ne("") & raw_number.str.lower().ne("nan")
+    # POST-CLEANING LOGIC:
+    # Every row that reaches DEMOGRAFIK is already a valid cleaned pemilih.
+    df["_pemilih_tel"] = True
 
     service_col = get_service_col(df)
     if service_col:
@@ -70,6 +71,8 @@ def prepare_demografik_df(df):
     else:
         svc = pd.Series([""] * len(df), index=df.index)
 
+    # POST-CLEANING POLIS / ASKAR:
+    # Count only cleaned rows where service number starts with G/R/T.
     df["_polis"] = svc.str.startswith(("G", "R"), na=False)
     df["_askar"] = svc.str.startswith("T", na=False)
 
