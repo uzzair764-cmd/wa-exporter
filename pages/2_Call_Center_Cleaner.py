@@ -1,5 +1,10 @@
 import streamlit as st
-from processors.call_center_processor import read_file, standardize_columns, clean_text, run_cleaner
+from processors.call_center_processor import (
+    read_file,
+    standardize_columns,
+    clean_text,
+    run_cleaner
+)
 
 st.set_page_config(
     page_title="Call Center Cleaner",
@@ -25,7 +30,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="big-title">Call Center Number Cleaner</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtext">Clean Excel/CSV call center files, split CSVs, and export ZIP.</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtext">Clean call center Excel/CSV files and export ZIP.</div>', unsafe_allow_html=True)
 
 uploaded_files = st.file_uploader(
     "Upload Excel or CSV files",
@@ -33,26 +38,16 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True
 )
 
-with st.sidebar:
-    st.header("Options")
+start_id = st.text_input(
+    "Starting ID",
+    value="CJ1000",
+    help="Example: CJ1000 will start output from CJ1001"
+)
 
-    start_id = st.text_input(
-        "Starting ID",
-        value="CJ1000",
-        help="Example: CJ1000 will start output from CJ1001"
-    )
-
-    chunk_size = st.number_input(
-        "CSV chunk size",
-        min_value=1000,
-        max_value=500000,
-        value=50000,
-        step=1000
-    )
-
-    remove_invalid = st.toggle("Remove invalid phone numbers", value=True)
-    remove_duplicates = st.toggle("Remove duplicate numbers", value=True)
-    prefix_6 = st.toggle("Prefix 6 in CSV", value=True)
+CHUNK_SIZE = 50000
+REMOVE_INVALID = True
+REMOVE_DUPLICATES = True
+PREFIX_6 = True
 
 if uploaded_files:
     st.subheader("Preview")
@@ -88,10 +83,10 @@ if uploaded_files:
                 zip_bytes, summary_df = run_cleaner(
                     uploaded_files=uploaded_files,
                     start_id=start_id,
-                    chunk_size=int(chunk_size),
-                    remove_invalid=remove_invalid,
-                    remove_duplicates=remove_duplicates,
-                    prefix_6=prefix_6
+                    chunk_size=CHUNK_SIZE,
+                    remove_invalid=REMOVE_INVALID,
+                    remove_duplicates=REMOVE_DUPLICATES,
+                    prefix_6=PREFIX_6
                 )
 
             st.success("Done.")
