@@ -134,7 +134,9 @@ def build_output_df(df, id_prefix, start_num):
         if col not in df.columns:
             df[col] = ""
 
-    return df[FINAL_COLUMNS], start_num + row_count
+    last_generated_id = f"{id_prefix}{start_num + row_count - 1}" if row_count else None
+
+    return df[FINAL_COLUMNS], start_num + row_count, last_generated_id
 
 
 def write_xlsx_bytes(df):
@@ -215,6 +217,8 @@ def run_cleaner(
     zip_buffer = io.BytesIO()
     summary = []
 
+    overall_last_generated_id = None
+
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
         for file in uploaded_files:
             base_name = os.path.splitext(file.name)[0]
@@ -228,11 +232,14 @@ def run_cleaner(
 
             cleaned_df, stats = clean_numbers(df)
 
-            output_df, current_num = build_output_df(
+            output_df, current_num, last_generated_id = build_output_df(
                 cleaned_df,
                 id_prefix,
                 current_num
             )
+
+            if last_generated_id:
+                overall_last_generated_id = last_generated_id
 
             zipf.writestr(
                 f"{base_name}/{base_name}.xlsx",
@@ -257,8 +264,14 @@ def run_cleaner(
 
             stats["file"] = file.name
             stats["csv_chunks"] = len(csv_chunks)
+            stats["last_id_generated"] = last_generated_id or ""
             summary.append(stats)
 
     zip_buffer.seek(0)
 
-    return zip_buffer.getvalue(), pd.DataFrame(summary)
+    summary_df = pd.DataFrame(summary)
+
+    if not summary_df.empty:
+        summary_df.attrs["last_generated_id"] = overall_last_generated_id or ""
+
+    return zip_buffer.getvalue(), summary_df
