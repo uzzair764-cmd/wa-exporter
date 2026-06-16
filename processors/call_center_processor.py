@@ -72,7 +72,7 @@ def clean_text(df):
     return df
 
 
-def clean_numbers(df, remove_invalid=True, remove_duplicates=True):
+def clean_numbers(df):
     df = df.copy()
     total_rows = len(df)
 
@@ -96,20 +96,16 @@ def clean_numbers(df, remove_invalid=True, remove_duplicates=True):
 
     invalid_removed = int(invalid_mask.sum())
 
-    if remove_invalid:
-        df = df.loc[~invalid_mask].copy()
+    df = df.loc[~invalid_mask].copy()
 
     before_dedupe = len(df)
-
-    if remove_duplicates:
-        df = df.drop_duplicates(subset=["number"], keep="first").copy()
-
+    df = df.drop_duplicates(subset=["number"], keep="first").copy()
     duplicate_removed = before_dedupe - len(df)
 
     return df.reset_index(drop=True), {
         "uploaded_rows": total_rows,
-        "invalid_removed": invalid_removed if remove_invalid else 0,
-        "duplicate_removed": duplicate_removed if remove_duplicates else 0,
+        "invalid_removed": invalid_removed,
+        "duplicate_removed": duplicate_removed,
         "final_rows": len(df),
     }
 
@@ -133,34 +129,56 @@ def write_xlsx_bytes(df):
     output = io.BytesIO()
 
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        df.to_excel(writer, index=False, header=False, startrow=1, sheet_name="Sheet1")
+        df.to_excel(
+            writer,
+            index=False,
+            header=False,
+            startrow=1,
+            sheet_name="Sheet1"
+        )
 
         workbook = writer.book
         worksheet = writer.sheets["Sheet1"]
 
-        header_fmt = workbook.add_format({"bold": False, "border": 0, "align": "left"})
-        cell_fmt = workbook.add_format({"border": 0, "align": "center"})
+        header_fmt = workbook.add_format({
+            "bold": False,
+            "border": 0,
+            "align": "center",
+            "valign": "vcenter"
+        })
+
+        cell_fmt = workbook.add_format({
+            "border": 0,
+            "align": "center",
+            "valign": "vcenter"
+        })
 
         for col_idx, col_name in enumerate(df.columns):
             worksheet.write(0, col_idx, col_name, header_fmt)
 
-        worksheet.set_column(0, len(df.columns) - 1, 18, cell_fmt)
+        worksheet.set_column(
+            0,
+            len(df.columns) - 1,
+            18,
+            cell_fmt
+        )
 
     output.seek(0)
     return output.getvalue()
 
 
-def write_csv_chunks(df, chunk_size, prefix_6=True):
+def write_csv_chunks(df, chunk_size=50000):
     csv_df = pd.DataFrame({
         "id": df["id"].astype(str),
         "name": df["name"].astype(str),
-        "number": ("6" + df["number"].astype(str)) if prefix_6 else df["number"].astype(str),
+        "number": "6" + df["number"].astype(str),
     })
 
     chunks = []
 
     for chunk_no, start in enumerate(range(0, len(csv_df), chunk_size), start=1):
         part = csv_df.iloc[start:start + chunk_size]
+
         csv_bytes = part.to_csv(
             index=False,
             encoding="utf-8-sig",
@@ -172,7 +190,7 @@ def write_csv_chunks(df, chunk_size, prefix_6=True):
     return chunks
 
 
-def run_cleaner(uploaded_files, start_id, chunk_size=50000, remove_invalid=True, remove_duplicates=True, prefix_6=True):
+def run_cleaner(uploaded_files, start_id):
     id_prefix, current_num = parse_start_id(start_id)
 
     zip_buffer = io.BytesIO()
@@ -186,20 +204,20 @@ def run_cleaner(uploaded_files, start_id, chunk_size=50000, remove_invalid=True,
             df = standardize_columns(raw_df)
             df = clean_text(df)
 
-            cleaned_df, stats = clean_numbers(
-                df,
-                remove_invalid=remove_invalid,
-                remove_duplicates=remove_duplicates
-            )
+            cleaned_df, stats = clean_numbers(df)
 
-            output_df, current_num = build_output_df(cleaned_df, id_prefix, current_num)
+            output_df, current_num = build_output_df(
+                cleaned_df,
+                id_prefix,
+                current_num
+            )
 
             zipf.writestr(
                 f"{base_name}/{base_name}.xlsx",
                 write_xlsx_bytes(output_df)
             )
 
-            csv_chunks = write_csv_chunks(output_df, chunk_size, prefix_6)
+            csv_chunks = write_csv_chunks(output_df, chunk_size=50000)
 
             for chunk_no, csv_bytes in csv_chunks:
                 zipf.writestr(
