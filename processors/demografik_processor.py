@@ -110,22 +110,20 @@ def build_demo_row(code, name, group):
     return row
 
 
-def add_total_and_percent_rows(rows):
+def split_total_and_percent(rows):
     df = pd.DataFrame(rows)
 
     if df.empty:
-        return df
+        return df, {}, {}
 
     count_cols = ["JUMLAH PENGUNDI"] + RACES + AGE_GROUPS + GENDERS + TEL_COLS
 
     total_row = {
-        "KOD": "",
-        "NAMA": "JUMLAH PENGUNDI"
+        "LABEL": "JUMLAH PENGUNDI"
     }
 
     percent_row = {
-        "KOD": "",
-        "NAMA": "PERATUSAN"
+        "LABEL": "PERATUSAN"
     }
 
     for col in count_cols:
@@ -138,7 +136,7 @@ def add_total_and_percent_rows(rows):
     for col in RACES + AGE_GROUPS + GENDERS + TEL_COLS:
         percent_row[col] = pct(total_row[col], grand_total)
 
-    return pd.concat([df, pd.DataFrame([total_row, percent_row])], ignore_index=True)
+    return df, total_row, percent_row
 
 
 def format_parlimen_label(df, base_name):
@@ -178,157 +176,149 @@ def format_dm_code(kod_dm):
     return f"DM.{kod[-2:].zfill(2)}"
 
 
-def write_legend(ws, workbook):
-    legend_melayu_fmt = workbook.add_format({
-        "font_name": "Calibri",
-        "font_size": 11,
-        "bold": True,
-        "font_color": "#000000",
-        "align": "center",
-        "valign": "vcenter",
-        "border": 1,
-        "bg_color": "#FFFFFF"
-    })
+def make_formats(workbook):
+    return {
+        "title": workbook.add_format({
+            "font_name": "Calibri",
+            "font_size": 22,
+            "bold": True,
+            "font_color": "#000000",
+            "align": "left",
+            "valign": "vcenter"
+        }),
+        "subtitle": workbook.add_format({
+            "font_name": "Calibri",
+            "font_size": 11,
+            "bold": True,
+            "font_color": "#000000",
+            "align": "left",
+            "valign": "vcenter"
+        }),
+        "legend_melayu": workbook.add_format({
+            "font_name": "Calibri",
+            "font_size": 11,
+            "bold": True,
+            "font_color": "#000000",
+            "align": "center",
+            "valign": "vcenter",
+            "border": 1,
+            "bg_color": "#FFFFFF"
+        }),
+        "legend_bukan": workbook.add_format({
+            "font_name": "Calibri",
+            "font_size": 11,
+            "bold": True,
+            "font_color": "#000000",
+            "align": "center",
+            "valign": "vcenter",
+            "border": 1,
+            "bg_color": "#F4B084"
+        }),
+        "header": workbook.add_format({
+            "font_name": "Calibri",
+            "font_size": 11,
+            "bold": True,
+            "font_color": "#000000",
+            "border": 1,
+            "align": "center",
+            "valign": "vcenter",
+            "bg_color": "#D9D9D9"
+        }),
+        "center": workbook.add_format({
+            "font_name": "Calibri",
+            "font_size": 11,
+            "bold": True,
+            "font_color": "#000000",
+            "border": 1,
+            "align": "center",
+            "valign": "vcenter",
+            "num_format": "#,##0"
+        }),
+        "left": workbook.add_format({
+            "font_name": "Calibri",
+            "font_size": 11,
+            "bold": True,
+            "font_color": "#000000",
+            "border": 1,
+            "align": "left",
+            "valign": "vcenter",
+            "num_format": "#,##0"
+        }),
+        "orange_center": workbook.add_format({
+            "font_name": "Calibri",
+            "font_size": 11,
+            "bold": True,
+            "font_color": "#000000",
+            "border": 1,
+            "align": "center",
+            "valign": "vcenter",
+            "bg_color": "#F4B084",
+            "num_format": "#,##0"
+        }),
+        "orange_left": workbook.add_format({
+            "font_name": "Calibri",
+            "font_size": 11,
+            "bold": True,
+            "font_color": "#000000",
+            "border": 1,
+            "align": "left",
+            "valign": "vcenter",
+            "bg_color": "#F4B084",
+            "num_format": "#,##0"
+        }),
+        "total_center": workbook.add_format({
+            "font_name": "Calibri",
+            "font_size": 11,
+            "bold": True,
+            "font_color": "#000000",
+            "border": 1,
+            "align": "center",
+            "valign": "vcenter",
+            "bg_color": "#D9D9D9",
+            "num_format": "#,##0"
+        }),
+        "total_left": workbook.add_format({
+            "font_name": "Calibri",
+            "font_size": 11,
+            "bold": True,
+            "font_color": "#000000",
+            "border": 1,
+            "align": "left",
+            "valign": "vcenter",
+            "bg_color": "#D9D9D9",
+            "num_format": "#,##0"
+        }),
+        "percent_center": workbook.add_format({
+            "font_name": "Calibri",
+            "font_size": 11,
+            "bold": True,
+            "font_color": "#000000",
+            "border": 1,
+            "align": "center",
+            "valign": "vcenter",
+            "bg_color": "#D9D9D9",
+            "num_format": "0.0%"
+        }),
+        "percent_left": workbook.add_format({
+            "font_name": "Calibri",
+            "font_size": 11,
+            "bold": True,
+            "font_color": "#000000",
+            "border": 1,
+            "align": "left",
+            "valign": "vcenter",
+            "bg_color": "#D9D9D9",
+            "num_format": "0.0%"
+        })
+    }
 
-    legend_bukan_fmt = workbook.add_format({
-        "font_name": "Calibri",
-        "font_size": 11,
-        "bold": True,
-        "font_color": "#000000",
-        "align": "center",
-        "valign": "vcenter",
-        "border": 1,
-        "bg_color": "#F4B084"
-    })
 
-    ws.merge_range("L3:P3", "KAWASAN MAJORITI MELAYU", legend_melayu_fmt)
-    ws.merge_range("L4:P4", "KAWASAN MAJORITI BUKAN MELAYU", legend_bukan_fmt)
+def write_legend(ws, row, formats):
+    ws.merge_range(row, 11, row, 15, "KAWASAN MAJORITI MELAYU", formats["legend_melayu"])
+    ws.merge_range(row + 1, 11, row + 1, 15, "KAWASAN MAJORITI BUKAN MELAYU", formats["legend_bukan"])
 
 
-def write_demografik_table(ws, workbook, start_row, title, subtitle, table_df, name_header):
-    title_fmt = workbook.add_format({
-        "font_name": "Calibri",
-        "font_size": 22,
-        "bold": True,
-        "font_color": "#000000",
-        "align": "left",
-        "valign": "vcenter"
-    })
-
-    subtitle_fmt = workbook.add_format({
-        "font_name": "Calibri",
-        "font_size": 11,
-        "bold": True,
-        "font_color": "#000000",
-        "align": "left",
-        "valign": "vcenter"
-    })
-
-    header_fmt = workbook.add_format({
-        "font_name": "Calibri",
-        "font_size": 11,
-        "bold": True,
-        "font_color": "#000000",
-        "border": 1,
-        "align": "center",
-        "valign": "vcenter",
-        "bg_color": "#D9D9D9"
-    })
-
-    cell_center_fmt = workbook.add_format({
-        "font_name": "Calibri",
-        "font_size": 11,
-        "bold": True,
-        "font_color": "#000000",
-        "border": 1,
-        "align": "center",
-        "valign": "vcenter",
-        "num_format": "#,##0"
-    })
-
-    cell_left_fmt = workbook.add_format({
-        "font_name": "Calibri",
-        "font_size": 11,
-        "bold": True,
-        "font_color": "#000000",
-        "border": 1,
-        "align": "left",
-        "valign": "vcenter",
-        "num_format": "#,##0"
-    })
-
-    orange_center_fmt = workbook.add_format({
-        "font_name": "Calibri",
-        "font_size": 11,
-        "bold": True,
-        "font_color": "#000000",
-        "border": 1,
-        "align": "center",
-        "valign": "vcenter",
-        "bg_color": "#F4B084",
-        "num_format": "#,##0"
-    })
-
-    orange_left_fmt = workbook.add_format({
-        "font_name": "Calibri",
-        "font_size": 11,
-        "bold": True,
-        "font_color": "#000000",
-        "border": 1,
-        "align": "left",
-        "valign": "vcenter",
-        "bg_color": "#F4B084",
-        "num_format": "#,##0"
-    })
-
-    total_center_fmt = workbook.add_format({
-        "font_name": "Calibri",
-        "font_size": 11,
-        "bold": True,
-        "font_color": "#000000",
-        "border": 1,
-        "align": "center",
-        "valign": "vcenter",
-        "bg_color": "#D9D9D9",
-        "num_format": "#,##0"
-    })
-
-    total_left_fmt = workbook.add_format({
-        "font_name": "Calibri",
-        "font_size": 11,
-        "bold": True,
-        "font_color": "#000000",
-        "border": 1,
-        "align": "left",
-        "valign": "vcenter",
-        "bg_color": "#D9D9D9",
-        "num_format": "#,##0"
-    })
-
-    percent_center_fmt = workbook.add_format({
-        "font_name": "Calibri",
-        "font_size": 11,
-        "bold": True,
-        "font_color": "#000000",
-        "border": 1,
-        "align": "center",
-        "valign": "vcenter",
-        "bg_color": "#D9D9D9",
-        "num_format": "0.0%"
-    })
-
-    percent_left_fmt = workbook.add_format({
-        "font_name": "Calibri",
-        "font_size": 11,
-        "bold": True,
-        "font_color": "#000000",
-        "border": 1,
-        "align": "left",
-        "valign": "vcenter",
-        "bg_color": "#D9D9D9",
-        "num_format": "0.0%"
-    })
-
+def write_demografik_table(ws, start_row, title, subtitle, rows, name_header, formats):
     columns = [
         "KOD", "NAMA", "JUMLAH PENGUNDI",
         "MELAYU", "CINA", "INDIA", "LAIN-LAIN",
@@ -337,36 +327,38 @@ def write_demografik_table(ws, workbook, start_row, title, subtitle, table_df, n
         "PEMILIH", "POLIS", "ASKAR"
     ]
 
+    data_df, total_row, percent_row = split_total_and_percent(rows)
+
     r = start_row
 
-    ws.merge_range(r, 0, r, 2, title, title_fmt)
+    ws.write(r, 0, title, formats["title"])
     r += 1
 
-    ws.merge_range(r, 0, r, 1, subtitle, subtitle_fmt)
-    r += 4
+    ws.write(r, 0, subtitle, formats["subtitle"])
 
-    ws.merge_range(r, 0, r + 1, 0, "KOD", header_fmt)
-    ws.merge_range(r, 1, r + 1, 1, name_header, header_fmt)
-    ws.merge_range(r, 2, r + 1, 2, "JUMLAH PENGUNDI", header_fmt)
+    write_legend(ws, r + 1, formats)
 
-    ws.merge_range(r, 3, r, 6, "KAUM", header_fmt)
-    ws.merge_range(r, 7, r, 10, "PERINGKAT UMUR", header_fmt)
-    ws.merge_range(r, 11, r, 12, "JANTINA", header_fmt)
-    ws.merge_range(r, 13, r, 15, "NO TEL", header_fmt)
+    r += 5
+
+    ws.merge_range(r, 0, r + 1, 0, "KOD", formats["header"])
+    ws.merge_range(r, 1, r + 1, 1, name_header, formats["header"])
+    ws.merge_range(r, 2, r + 1, 2, "JUMLAH PENGUNDI", formats["header"])
+
+    ws.merge_range(r, 3, r, 6, "KAUM", formats["header"])
+    ws.merge_range(r, 7, r, 10, "PERINGKAT UMUR", formats["header"])
+    ws.merge_range(r, 11, r, 12, "JANTINA", formats["header"])
+    ws.merge_range(r, 13, r, 15, "NO TEL", formats["header"])
 
     r += 1
 
     for c, header in enumerate(columns[3:], start=3):
-        ws.write(r, c, header, header_fmt)
+        ws.write(r, c, header, formats["header"])
 
     r += 1
 
-    for _, row in table_df.iterrows():
-        name_value = str(row.get("NAMA", "")).upper()
+    max_name_len = len(str(name_header))
 
-        is_total = name_value == "JUMLAH PENGUNDI"
-        is_percent = name_value == "PERATUSAN"
-
+    for _, row in data_df.iterrows():
         melayu = float(row.get("MELAYU", 0) or 0)
         non_melayu = (
             float(row.get("CINA", 0) or 0) +
@@ -374,39 +366,43 @@ def write_demografik_table(ws, workbook, start_row, title, subtitle, table_df, n
             float(row.get("LAIN-LAIN", 0) or 0)
         )
 
-        is_bukan_melayu = (
-            not is_total
-            and not is_percent
-            and non_melayu > melayu
-        )
+        is_bukan_melayu = non_melayu > melayu
+
+        max_name_len = max(max_name_len, len(str(row.get("NAMA", ""))))
 
         for c, col in enumerate(columns):
             value = row.get(col, "")
 
             if c == 1:
-                if is_percent:
-                    fmt = percent_left_fmt
-                elif is_total:
-                    fmt = total_left_fmt
-                elif is_bukan_melayu:
-                    fmt = orange_left_fmt
-                else:
-                    fmt = cell_left_fmt
+                fmt = formats["orange_left"] if is_bukan_melayu else formats["left"]
             else:
-                if is_percent:
-                    fmt = percent_center_fmt
-                elif is_total:
-                    fmt = total_center_fmt
-                elif is_bukan_melayu:
-                    fmt = orange_center_fmt
-                else:
-                    fmt = cell_center_fmt
+                fmt = formats["orange_center"] if is_bukan_melayu else formats["center"]
 
             ws.write(r, c, value, fmt)
 
         r += 1
 
-    return r + 2
+    r += 1
+
+    if total_row:
+        ws.merge_range(r, 0, r, 1, "JUMLAH PENGUNDI", formats["total_left"])
+
+        for c, col in enumerate(columns[2:], start=2):
+            ws.write(r, c, total_row.get(col, ""), formats["total_center"])
+
+        r += 1
+
+    if percent_row:
+        ws.merge_range(r, 0, r, 1, "PERATUSAN", formats["percent_left"])
+
+        ws.write(r, 2, "", formats["percent_center"])
+
+        for c, col in enumerate(columns[3:], start=3):
+            ws.write(r, c, percent_row.get(col, 0), formats["percent_center"])
+
+        r += 1
+
+    return r + 2, max_name_len
 
 
 def write_demografik_xlsx_bytes(raw_df, base_name):
@@ -419,15 +415,17 @@ def write_demografik_xlsx_bytes(raw_df, base_name):
         sheet = workbook.add_worksheet("DEMOGRAFIK")
         writer.sheets["DEMOGRAFIK"] = sheet
 
-        sheet.set_column(0, 0, 12)
-        sheet.set_column(1, 1, 36)
-        sheet.set_column(2, 15, 14)
+        formats = make_formats(workbook)
+
+        sheet.set_column(0, 0, 8)
+        sheet.set_column(1, 1, 20)
+        sheet.set_column(2, 2, 20)
+        sheet.set_column(3, 15, 8)
 
         parl_label = format_parlimen_label(df, base_name)
 
-        write_legend(sheet, workbook)
-
         current_row = 0
+        max_b_width = 20
 
         parlimen_rows = []
 
@@ -439,17 +437,17 @@ def write_demografik_xlsx_bytes(raw_df, base_name):
                 build_demo_row(dun_code, dun_name, grp)
             )
 
-        parlimen_table = add_total_and_percent_rows(parlimen_rows)
-
-        current_row = write_demografik_table(
+        current_row, section_b_width = write_demografik_table(
             sheet,
-            workbook,
             current_row,
             f"DEMOGRAFIK {parl_label}",
             parl_label,
-            parlimen_table,
-            "DUN"
+            parlimen_rows,
+            "DUN",
+            formats
         )
+
+        max_b_width = max(max_b_width, section_b_width + 2)
 
         for (kod_dun, nama_dun), dun_grp in df.groupby(["kod_dun", "nama_dun"], dropna=False):
             dun_code = format_dun_code(kod_dun)
@@ -467,17 +465,19 @@ def write_demografik_xlsx_bytes(raw_df, base_name):
                     build_demo_row(dm_code, dm_name, dm_grp)
                 )
 
-            dm_table = add_total_and_percent_rows(dm_rows)
-
-            current_row = write_demografik_table(
+            current_row, section_b_width = write_demografik_table(
                 sheet,
-                workbook,
                 current_row,
                 f"DEMOGRAFIK {parl_label}",
                 dun_label,
-                dm_table,
-                "DM"
+                dm_rows,
+                "DM",
+                formats
             )
+
+            max_b_width = max(max_b_width, section_b_width + 2)
+
+        sheet.set_column(1, 1, max(20, min(max_b_width, 60)))
 
     output.seek(0)
 
