@@ -7,7 +7,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📊 DM Stats / DEMOGRAFIK Generator")
+st.title("📊 DEMOGRAFIK Generator")
 
 uploaded_files = st.file_uploader(
     "Upload Excel file(s)",
