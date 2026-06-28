@@ -20,7 +20,7 @@ st.markdown(
 
     .block-container {
         padding-top: 4rem;
-        max-width: 1300px;
+        max-width: 1500px;
     }
 
     .main-title {
@@ -38,7 +38,7 @@ st.markdown(
     }
 
     div[data-testid="stPageLink"] > a {
-        height: 420px;
+        height: 380px;
         border-radius: 34px;
         border: 2px solid #d9d9d9;
         background: #ffffff;
@@ -47,7 +47,7 @@ st.markdown(
         align-items: center;
         justify-content: center;
         text-align: center;
-        font-size: 2.7rem;
+        font-size: 2.35rem;
         font-weight: 900;
         color: #111;
         text-decoration: none;
@@ -64,7 +64,7 @@ st.markdown(
     }
 
     div[data-testid="stPageLink"] p {
-        font-size: 2.7rem;
+        font-size: 2.35rem;
         font-weight: 900;
         letter-spacing: -0.03em;
     }
@@ -84,7 +84,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-left, right = st.columns(2, gap="large")
+left, middle, right = st.columns(3, gap="large")
 
 with left:
     st.page_link(
@@ -94,10 +94,18 @@ with left:
         use_container_width=True
     )
 
-with right:
+with middle:
     st.page_link(
         "pages/2_Call_Center_Cleaner.py",
         label="CALL CENTER CLEANER",
         icon="📞",
+        use_container_width=True
+    )
+
+with right:
+    st.page_link(
+        "pages/3_DM_Stats.py",
+        label="DEMOGRAFIK GENERATOR",
+        icon="📊",
         use_container_width=True
     )
