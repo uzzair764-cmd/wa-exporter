@@ -12,11 +12,12 @@ st.title("📊 DM Stats / DEMOGRAFIK Generator")
 uploaded_files = st.file_uploader(
     "Upload Excel file(s)",
     type=["xlsx", "xls"],
-    accept_multiple_files=True
+    accept_multiple_files=True,
+    key="dm_stats_excel_uploader"
 )
 
 if uploaded_files:
-    if st.button("Generate DEMOGRAFIK"):
+    if st.button("Generate DEMOGRAFIK", key="dm_stats_generate_button"):
         try:
             excel_bytes, out_name, logs = generate_demografik(uploaded_files)
 
@@ -30,7 +31,8 @@ if uploaded_files:
                 label="Download Excel",
                 data=excel_bytes,
                 file_name=out_name,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="dm_stats_download_button"
             )
 
         except Exception as e:
