@@ -1006,7 +1006,12 @@ def run_export(file_paths, config, progress_callback=None):
             group_labels = [safe_file_label(x) for x in group_key]
 
             if len(group_labels) == 1:
-                if last_group_as_folder:
+                # Single-level outputs like:
+                #   DUN > DUN.xlsx
+                #   PARLIMEN > PARLIMEN.xlsx
+                # should be written directly under voter_outputs/, not inside a folder.
+                # Split modes like DUN > KAUM still use a DUN folder because split_col is active.
+                if last_group_as_folder and split_col:
                     folder_parts = group_labels
                     file_base = group_labels[-1]
 
